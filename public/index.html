@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <title>Work Shifts — ShiftFlow</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    /* ── Fix 4: Loading spinner ── */
+    .spinner {
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      padding: 30px; color: rgba(255,255,255,.5); font-size: 14px;
+    }
+    .spinner-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: rgba(255,255,255,.4);
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+    .spinner-dot:nth-child(2) { animation-delay: .2s; }
+    .spinner-dot:nth-child(3) { animation-delay: .4s; }
+    @keyframes pulse {
+      0%, 80%, 100% { transform: scale(0.7); opacity: .4; }
+      40%           { transform: scale(1.1); opacity: 1;  }
+    }
+
+    /* ── Fix 8: Success banner ── */
+    .success-banner {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      background: #1d8a4c; color: #fff;
+      padding: 14px 20px; text-align: center;
+      font-size: 14.5px; font-weight: 700;
+      transform: translateY(-100%);
+      transition: transform .3s ease;
+      box-shadow: 0 4px 16px rgba(0,0,0,.2);
+    }
+    .success-banner.show { transform: translateY(0); }
+  </style>
+</head>
+<body>
+
+<!-- Fix 8: Success banner -->
+<div class="success-banner" id="successBanner">
+  ✅ Booking confirmed! See you on shift day.
+</div>
+
+<div class="wrap">
+  <div class="top-logo">
+    <div class="logo-wrap">
+      <img src="logo.png" alt="ShiftFlow">
+    </div>
+  </div>
+
+  <div class="title-card">
+    <h1>Available Work Shifts</h1>
+    <p>Choose the date you want to work and enter your name and Staff Number.
+       Spots are limited — once a date is full, it closes automatically.</p>
+  </div>
+
+  <!-- Fix 4: spinner shown while loading -->
+  <div id="shiftsList">
+    <div class="spinner">
+      <div class="spinner-dot"></div>
+      <div class="spinner-dot"></div>
+      <div class="spinner-dot"></div>
+    </div>
+  </div>
+
+  <div class="footer-note">
+    ShiftFlow &middot; Internal Use &middot; Only select dates you can actually attend
+  </div>
+</div>
+
+<!-- ── Booking Modal ── -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-box">
+
+    <!-- Step 1: enter details -->
+    <div id="stepForm">
+      <h3 id="modalTitle">Book a shift</h3>
+      <div class="field">
+        <label>Full name</label>
+        <input type="text" id="inputName" placeholder="Your full name" autocomplete="name">
+      </div>
+      <div class="field">
+        <label>Staff Number</label>
+        <input type="text" id="inputStaffNumber" placeholder="e.g. 12345"
+               autocomplete="off" autocorrect="off" autocapitalize="characters">
+      </div>
+      <!-- Honeypot: invisible to real people, but bots that auto-fill every
+           field on the page will fill this in too. Positioned off-screen
+           (not display:none) since some bots skip fields hidden that way. -->
+      <div style="position:absolute; left:-9999px; top:-9999px;" aria-hidden="true">
+        <label for="inputCompany">Company</label>
+        <input type="text" id="inputCompany" name="company" tabindex="-1" autocomplete="off">
+      </div>
+      <div class="msg" id="formMsg"></div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" id="btnCancel" style="flex:1;">Cancel</button>
+        <button class="btn btn-primary" id="btnContinue" style="flex:1;">Continue →</button>
+      </div>
+    </div>
+
+    <!-- Step 2: review and confirm -->
+    <div id="stepConfirm" style="display:none;">
+      <h3>Please review your details</h3>
+      <div style="background:#f4f5fb;border-radius:10px;padding:14px 16px;margin-bottom:14px;font-size:13.5px;line-height:2;">
+        <div><b>Name:</b> <span id="confName"></span></div>
+        <div><b>Staff Number:</b> <span id="confStaffNumber"></span></div>
+        <div><b>Shift:</b> <span id="confLabel"></span></div>
+        <div><b>Date:</b> <span id="confDate"></span></div>
+        <div id="confTimeRow" style="display:none;"><b>Time:</b> <span id="confTime"></span></div>
+      </div>
+      <p style="font-size:12.5px;color:#888;margin:0 0 14px 0;">
+        Is everything correct? Once confirmed this cannot be changed.
+      </p>
+      <div class="msg" id="confirmMsg"></div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" id="btnEdit" style="flex:1;">← Edit</button>
+        <button class="btn btn-primary" id="btnConfirm" style="flex:1;">Yes, Confirm</button>
+      </div>
+      <!-- Fix 5: Close button shown only on error -->
+      <button class="btn btn-outline" id="btnCloseError"
+        style="width:100%;margin-top:10px;display:none;">
+        ✕ Close
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<script src="firebase-config.js"></script>
+<script type="module">
+import { initializeApp }       from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check.js";
+import {
+  getFirestore, collection, doc,
+  onSnapshot, query, orderBy,
+  runTransaction, serverTimestamp, getDocs, where
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import {
+  normaliseStaff, toTitleCase, isValidName,
+  formatDateDisplay, showMsg, clearMsg
+} from "./shared.js"; // Fix 11
+
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+
+// App Check: only activate once a real Site Key has been pasted into
+// firebase-config.js (see instructions there). Wrapped in try/catch so
+// a misconfigured key never breaks the page for staff trying to book.
+if (typeof APPCHECK_SITE_KEY === 'string' && APPCHECK_SITE_KEY !== 'COLE_AQUI_A_SITE_KEY') {
+  try {
+    initializeAppCheck(app, {
+      provider: new ReCaptchaV3Provider(APPCHECK_SITE_KEY),
+      isTokenAutoRefreshEnabled: true,
+    });
+  } catch (err) {
+    console.error('App Check failed to initialise:', err);
+  }
+}
+
+// ── DOM refs ──────────────────────────────────────────────
+const shiftsList    = document.getElementById('shiftsList');
+const modalOverlay  = document.getElementById('modalOverlay');
+const modalTitle    = document.getElementById('modalTitle');
+const inputName     = document.getElementById('inputName');
+const inputStaffNum = document.getElementById('inputStaffNumber');
+const formMsg       = document.getElementById('formMsg');
+const confirmMsg    = document.getElementById('confirmMsg');
+const stepForm      = document.getElementById('stepForm');
+const stepConfirm   = document.getElementById('stepConfirm');
+const btnCloseError = document.getElementById('btnCloseError');
+const successBanner = document.getElementById('successBanner');
+
+// ── State ─────────────────────────────────────────────────
+let currentShift = null;
+
+// ── Fix 1: Normalise staff number ─────────────────────────
+// Hardened against mobile-keyboard quirks: some phones/IMEs insert
+// full-width digits (e.g. "５" instead of "5") or invisible characters
+// (zero-width spaces) that LOOK identical on screen but don't match
+// as text. This strips both, keeping only real A-Z/0-9.
+// Fix 11: shared utilities now live in shared.js, imported below —
+// see that file for normaliseStaff, toTitleCase, isValidName,
+// formatDateDisplay, showMsg, clearMsg (previously duplicated here
+// and in admin.html).
+
+// ── Fix 8: Success banner ─────────────────────────────────
+function showSuccessBanner() {
+  successBanner.classList.add('show');
+  setTimeout(() => successBanner.classList.remove('show'), 5000);
+}
+
+// ── Modal controls ────────────────────────────────────────
+let modalOpenedAt = 0; // timestamp used by the bot-timing check below
+
+function openModal(shiftId) {
+  const s = (window.__shiftsMap || {})[shiftId];
+  if (!s) return;
+  currentShift = { id: shiftId, label: s.label, date: s.date, time: s.time || '', group: s.group || null };
+  modalTitle.textContent    = `Book: ${s.label}`;
+  inputName.value           = '';
+  inputStaffNum.value       = '';
+  document.getElementById('inputCompany').value = ''; // reset honeypot
+  modalOpenedAt = Date.now();
+  clearMsg(formMsg);
+  clearMsg(confirmMsg);
+  btnCloseError.style.display = 'none';
+  stepForm.style.display      = 'block';
+  stepConfirm.style.display   = 'none';
+  modalOverlay.classList.add('active');
+}
+function closeModal() {
+  modalOverlay.classList.remove('active');
+}
+
+document.getElementById('btnCancel').addEventListener('click', closeModal);
+// Fix 5: Close button on error
+btnCloseError.addEventListener('click', closeModal);
+modalOverlay.addEventListener('click', e => { if (e.target === modalOverlay) closeModal(); });
+
+// ── Step 1 → Step 2 ───────────────────────────────────────
+document.getElementById('btnContinue').addEventListener('click', () => {
+  // Bot check 1: honeypot — a real person never sees or fills this field.
+  // If it has anything in it, it was an automated script, not a human.
+  if (document.getElementById('inputCompany').value.trim() !== '') {
+    showMsg(formMsg, 'Something went wrong. Please refresh the page and try again.', 'error');
+    return;
+  }
+  // Bot check 2: minimum time on page — no real person reads the shift
+  // details, types a name and a staff number in under ~2.5 seconds.
+  if (Date.now() - modalOpenedAt < 2500) {
+    showMsg(formMsg, 'Please take a moment to review your details before continuing.', 'error');
+    return;
+  }
+
+  const name        = toTitleCase(inputName.value.trim());
+  const staffNumber = normaliseStaff(inputStaffNum.value); // Fix 1
+  if (!name || !staffNumber) {
+    showMsg(formMsg, 'Please fill in both fields.', 'error');
+    return;
+  }
+  if (!isValidName(name)) {
+    showMsg(formMsg, 'Please enter your full name — first and last name, letters only (no numbers or symbols).', 'error');
+    return;
+  }
+  // Update display with normalised values, so staff sees the correction
+  inputName.value      = name;
+  inputStaffNum.value  = staffNumber;
+  document.getElementById('confName').textContent        = name;
+  document.getElementById('confStaffNumber').textContent = staffNumber;
+  document.getElementById('confLabel').textContent       = currentShift.label;
+  document.getElementById('confDate').textContent        = formatDateDisplay(currentShift.date);
+  if (currentShift.time) {
+    document.getElementById('confTime').textContent      = currentShift.time;
+    document.getElementById('confTimeRow').style.display = 'block';
+  } else {
+    document.getElementById('confTimeRow').style.display = 'none';
+  }
+  clearMsg(confirmMsg);
+  btnCloseError.style.display = 'none';
+  stepForm.style.display      = 'none';
+  stepConfirm.style.display   = 'block';
+});
+
+document.getElementById('btnEdit').addEventListener('click', () => {
+  stepForm.style.display    = 'block';
+  stepConfirm.style.display = 'none';
+});
+
+// ── Step 2: Submit ────────────────────────────────────────
+document.getElementById('btnConfirm').addEventListener('click', async () => {
+  const name        = toTitleCase(inputName.value.trim());
+  const staffNumber = normaliseStaff(inputStaffNum.value); // Fix 1
+  const btn         = document.getElementById('btnConfirm');
+  btn.disabled      = true;
+  btn.textContent   = 'Submitting...';
+  btnCloseError.style.display = 'none';
+
+  try {
+    // Staff Visa Status list — doubles as the master staff directory.
+    // The staff number MUST exist here for a booking to go through.
+    const visaSnap = await getDocs(query(
+      collection(db, 'blockedStaff'),
+      where('staffNumber', '==', staffNumber)
+    ));
+
+    if (visaSnap.empty) {
+      showMsg(confirmMsg,
+        'Staff Number not recognised. Please check the number or contact your supervisor.',
+        'error');
+      btnCloseError.style.display = 'block'; // Fix 5
+      btn.disabled = false; btn.textContent = 'Yes, Confirm'; return;
+    }
+
+    const visaData    = visaSnap.docs[0].data();
+    const shiftDate    = currentShift.date;              // 'YYYY-MM-DD' string
+    const expiryDate   = visaData.visaExpiry || null;    // 'YYYY-MM-DD' string or null
+
+    // No expiry saved -> staff can book normally.
+    // Expiry saved -> staff can still work ON the expiry date itself;
+    // only blocked from the day AFTER it.
+    const isBlocked = expiryDate && expiryDate < shiftDate;
+    if (isBlocked) {
+      showMsg(confirmMsg,
+        'Your work authorisation documents are not valid for this shift date. Please contact HR.',
+        'error');
+      btnCloseError.style.display = 'block'; // Fix 5
+      btn.disabled = false; btn.textContent = 'Yes, Confirm'; return;
+    }
+
+    // Fix 10: group isolation — staff can only book shifts from their own group
+    const staffGroup = visaData.group || null;
+    if (currentShift.group && staffGroup !== currentShift.group) {
+      showMsg(confirmMsg,
+        'This shift is not available for your group. Please contact your supervisor if you think this is a mistake.',
+        'error');
+      btnCloseError.style.display = 'block'; // Fix 5
+      btn.disabled = false; btn.textContent = 'Yes, Confirm'; return;
+    }
+
+    const bookingsRef = collection(db, 'shifts', currentShift.id, 'bookings');
+    const bookingRef  = doc(db, 'shifts', currentShift.id, 'bookings', staffNumber); // Fix 9
+
+    // Best-effort check for older bookings created before this fix
+    // (they still have random IDs, not staffNumber). Not atomic by
+    // itself, but it catches legacy duplicates and most casual
+    // double-clicks before we even open the transaction.
+    const dupSnap = await getDocs(query(bookingsRef, where('staffNumber', '==', staffNumber)));
+    if (!dupSnap.empty) {
+      showMsg(confirmMsg, 'This Staff Number is already booked for this date.', 'error');
+      btnCloseError.style.display = 'block'; // Fix 5
+      btn.disabled = false; btn.textContent = 'Yes, Confirm'; return;
+    }
+
+    // Atomic transaction — Fix 9: the booking doc ID IS the staff number.
+    // The duplicate check and the write now target the exact same
+    // document, inside the same transaction. If two submissions for
+    // the same Staff Number collide, Firestore guarantees only one
+    // wins — the other gets DUPLICATE and retries safely.
+    await runTransaction(db, async transaction => {
+      const shiftRef  = doc(db, 'shifts', currentShift.id);
+      const shiftSnap = await transaction.get(shiftRef);
+      if (!shiftSnap.exists())               throw new Error('NOT_FOUND');
+      const data = shiftSnap.data();
+      if (data.active === false)             throw new Error('CLOSED');
+
+      const existingBooking = await transaction.get(bookingRef); // Fix 9
+      if (existingBooking.exists())          throw new Error('DUPLICATE');
+
+      if (data.bookedCount >= data.capacity) throw new Error('FULL');
+      transaction.update(shiftRef, { bookedCount: data.bookedCount + 1 });
+      transaction.set(bookingRef, { name, staffNumber, group: staffGroup, createdAt: serverTimestamp() });
+    });
+
+    showMsg(confirmMsg, 'Booking confirmed!', 'success');
+    setTimeout(() => {
+      closeModal();
+      showSuccessBanner(); // Fix 8
+    }, 1000);
+
+  } catch (err) {
+    const messages = {
+      FULL:      'Sorry! The spots for this date were just filled.',
+      CLOSED:    'This date is no longer available.',
+      NOT_FOUND: 'Shift not found. Please refresh the page.',
+      DUPLICATE: 'This Staff Number is already booked for this date.',
+    };
+    let userMsg = messages[err.message];
+    if (!userMsg) {
+      // Firestore itself rejected the write (e.g. our security rules caught
+      // something off — a bot, or a rare formatting mismatch on a real
+      // Staff Number). Give a helpful hint without exposing *why* it was
+      // blocked, so we don't hand an attacker a map of our defences.
+      userMsg = (err.code === 'permission-denied')
+        ? 'We couldn\'t confirm your booking. Please double-check your name and Staff Number, or contact your supervisor.'
+        : 'Something went wrong. Please try again.';
+    }
+    showMsg(confirmMsg, userMsg, 'error');
+    btnCloseError.style.display = 'block'; // Fix 5
+  } finally {
+    btn.disabled    = false;
+    btn.textContent = 'Yes, Confirm';
+  }
+});
+
+// ── Render shifts ─────────────────────────────────────────
+function renderShifts(shifts) {
+  window.__shiftsMap = {};
+  const visible = shifts.filter(s => s.active !== false);
+  if (visible.length === 0) {
+    shiftsList.innerHTML = '<div class="title-card"><p style="color:rgba(255,255,255,.6);">No shifts available at the moment.</p></div>';
+    return;
+  }
+  visible.forEach(s => { window.__shiftsMap[s.id] = s; });
+  shiftsList.innerHTML = visible.map(s => {
+    const remaining = Math.max(0, s.capacity - s.bookedCount);
+    const pct       = Math.min(100, Math.round((s.bookedCount / s.capacity) * 100));
+    const badge     = remaining === 0
+      ? { cls: 'badge-full', text: 'Full' }
+      : remaining <= Math.ceil(s.capacity * 0.2)
+        ? { cls: 'badge-low',  text: `${remaining} left` }
+        : { cls: 'badge-open', text: `${remaining} spots` };
+    const timeHtml = s.time ? ` &middot; ${s.time}` : '';
+    const btn      = remaining === 0
+      ? `<button class="btn btn-disabled" disabled>Spots Filled</button>`
+      : `<button class="btn btn-primary" onclick="window.__openModal('${s.id}')">Book this shift</button>`;
+    return `
+      <div class="shift-card">
+        <div class="shift-top">
+          <div>
+            <p class="shift-label">${s.label}</p>
+            <div class="shift-date">${formatDateDisplay(s.date)}${timeHtml}</div>
+          </div>
+          <span class="shift-badge ${badge.cls}">${badge.text}</span>
+        </div>
+        <div class="shift-bar-wrap">
+          <div class="shift-bar-fill" style="width:${pct}%"></div>
+        </div>
+        <div class="shift-count">${s.bookedCount} of ${s.capacity} spots filled</div>
+        ${btn}
+      </div>`;
+  }).join('');
+}
+
+window.__openModal = openModal;
+
+// ── Real-time listener ────────────────────────────────────
+onSnapshot(
+  query(collection(db, 'shifts'), orderBy('date', 'asc')),
+  snapshot => {
+    const shifts = [];
+    snapshot.forEach(d => shifts.push({ id: d.id, ...d.data() }));
+    renderShifts(shifts);
+  },
+  error => {
+    console.error(error);
+    shiftsList.innerHTML = '<div class="title-card"><p style="color:rgba(255,255,255,.6);">Error loading shifts. Please refresh.</p></div>';
+  }
+);
+</script>
+
+</body>
+</html>

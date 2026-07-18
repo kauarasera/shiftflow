@@ -1,0 +1,423 @@
+/* ============================================================
+   ShiftFlow — Shift Sign-Up
+   Design System
+   ============================================================ */
+
+/* ── Reset & base ─────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ── Cross-platform form control reset ───────────────────────
+   Without this, iOS/Android draw their own native chrome on
+   buttons and inputs (rounded gradients, system fonts, calendar
+   icons, spinner arrows) *underneath* our custom styling, which
+   is why buttons look "off" on phones but fine on desktop. ── */
+html { -webkit-text-size-adjust: 100%; }
+button, input, textarea, select {
+  -webkit-appearance: none;
+  appearance: none;
+  font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+button { outline: none; cursor: pointer; background-image: none; }
+button:focus { outline: none; }
+button:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+a { -webkit-tap-highlight-color: transparent; }
+
+/* input[type=date]: normalise height/box across iOS & Android so the
+   field matches the rest of the form even though the native picker
+   UI itself still differs per platform (unavoidable — no CSS controls
+   the picker popup itself, only Claude's browser can't change that). */
+input[type="date"] {
+  min-height: 44px;
+  line-height: 1.3;
+}
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(46%) sepia(89%) saturate(1935%) hue-rotate(206deg) brightness(97%) contrast(101%);
+  cursor: pointer;
+}
+
+/* input[type=number]: hide the increment/decrement spinner (Chrome/Android
+   show it, iOS Safari doesn't — inconsistent either way, so we remove it
+   everywhere and let people just type the number). */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] { -moz-appearance: textfield; }
+
+:root {
+  --navy:       #0c0c2e;
+  --navy-mid:   #14143d;
+  --navy-light: #1e1e52;
+  --blue:       #2b6cff;
+  --blue-light: #eef3ff;
+  --cyan:       #00c2ff;
+  --white:      #ffffff;
+  --grey-50:    #f7f8fc;
+  --grey-100:   #eceef5;
+  --grey-200:   #dde0ef;
+  --grey-400:   #9a9ab8;
+  --grey-600:   #555570;
+  --green:      #1d8a4c;
+  --green-bg:   #e8f7ee;
+  --amber:      #b8740a;
+  --amber-bg:   #fff4e0;
+  --red:        #c0392b;
+  --red-bg:     #fde8e8;
+  --radius-sm:  8px;
+  --radius-md:  14px;
+  --radius-lg:  20px;
+  --shadow-sm:  0 2px 8px rgba(12,12,46,.10);
+  --shadow-md:  0 8px 24px rgba(12,12,46,.18);
+  --shadow-lg:  0 20px 48px rgba(12,12,46,.30);
+}
+
+body {
+  font-family: -apple-system, 'Segoe UI', Arial, sans-serif;
+  font-size: 14px;
+  color: var(--navy);
+  background-color: var(--navy);
+  background-image:
+    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(43,108,255,.18) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 40% at 100% 100%, rgba(0,194,255,.10) 0%, transparent 60%);
+  min-height: 100vh;
+  padding: 36px 16px 64px;
+}
+
+/* ── Layout ────────────────────────────────────────────────── */
+.wrap { max-width: 580px; margin: 0 auto; }
+
+/* ── Logo header ───────────────────────────────────────────── */
+.top-logo {
+  text-align: center;
+  margin-bottom: 28px;
+}
+.logo-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  padding: 14px 28px;
+  box-shadow: var(--shadow-lg);
+}
+.logo-wrap img { width: 160px; display: block; }
+
+/* ── Title card ────────────────────────────────────────────── */
+.title-card {
+  position: relative;
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.10);
+  backdrop-filter: blur(10px);
+  border-radius: var(--radius-lg);
+  padding: 26px 28px;
+  text-align: center;
+  margin-bottom: 24px;
+  overflow: hidden;
+}
+.title-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, var(--blue) 0%, var(--cyan) 100%);
+  opacity: .8;
+}
+.title-card h1 {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--white);
+  margin-bottom: 8px;
+  letter-spacing: -.3px;
+}
+.title-card p {
+  font-size: 13.5px;
+  color: rgba(255,255,255,.65);
+  line-height: 1.6;
+}
+
+/* ── Shift card ────────────────────────────────────────────── */
+.shift-card {
+  position: relative;
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  padding: 22px 24px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+  transition: box-shadow .2s ease, transform .2s ease;
+}
+.shift-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 4px;
+  background: linear-gradient(90deg, var(--navy) 0%, var(--blue) 55%, var(--cyan) 100%);
+}
+.shift-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-2px); }
+
+.shift-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.shift-label { font-size: 17px; font-weight: 700; color: var(--navy); }
+.shift-date  { font-size: 12.5px; color: var(--grey-400); margin-top: 3px; }
+
+/* ── Badges ────────────────────────────────────────────────── */
+.shift-badge {
+  font-size: 12px; font-weight: 700;
+  padding: 5px 13px; border-radius: 20px; white-space: nowrap; flex-shrink: 0;
+}
+.badge-open { background: var(--green-bg);  color: var(--green); }
+.badge-low  { background: var(--amber-bg);  color: var(--amber); }
+.badge-full { background: var(--red-bg);    color: var(--red);   }
+.shift-badge::before {
+  content: ''; display: inline-block; width: 6px; height: 6px;
+  border-radius: 50%; background: currentColor;
+  margin-right: 6px; vertical-align: middle;
+}
+
+/* ── Progress bar ──────────────────────────────────────────── */
+.shift-bar-wrap {
+  background: var(--grey-100);
+  border-radius: 10px; height: 7px;
+  margin: 16px 0 6px; overflow: hidden;
+}
+.shift-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--navy) 0%, var(--blue) 100%);
+  border-radius: 10px;
+  transition: width .4s ease;
+}
+.shift-count { font-size: 12px; color: var(--grey-400); margin-bottom: 16px; }
+
+/* ── Buttons ───────────────────────────────────────────────── */
+.btn {
+  display: block; width: 100%; text-align: center;
+  padding: 13px 16px; border-radius: var(--radius-sm);
+  border: none; font-size: 14.5px; font-weight: 700;
+  cursor: pointer; transition: all .15s ease; letter-spacing: .1px;
+}
+.btn-primary  {
+  background: linear-gradient(135deg, var(--navy) 0%, var(--blue) 130%);
+  color: var(--white);
+  box-shadow: 0 4px 14px rgba(43,108,255,.25);
+}
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(43,108,255,.35);
+  filter: brightness(1.06);
+}
+.btn-primary:active { transform: translateY(0); }
+.btn-disabled { background: var(--grey-100); color: var(--grey-400); cursor: not-allowed; }
+.btn-outline  { background: var(--white); color: var(--navy); border: 1.5px solid var(--grey-200); }
+.btn-outline:hover { border-color: var(--navy); transform: translateY(-1px); }
+.btn-danger   { background: var(--red-bg); color: var(--red); border: none; }
+.btn-danger-solid {
+  background: var(--red); color: var(--white); border: none;
+  box-shadow: 0 4px 14px rgba(192,57,43,.3);
+}
+.btn-danger-solid:hover { filter: brightness(1.08); }
+
+/* ── Form fields ───────────────────────────────────────────── */
+.field { margin-bottom: 14px; text-align: left; }
+.field label {
+  font-size: 12px; font-weight: 700; color: var(--grey-600);
+  display: block; margin-bottom: 6px; letter-spacing: .4px; text-transform: uppercase;
+}
+.field input {
+  width: 100%; padding: 11px 13px;
+  border-radius: var(--radius-sm); border: 1.5px solid var(--grey-200);
+  font-size: 14px; color: var(--navy); background: var(--white);
+  transition: border-color .15s;
+}
+.field input:focus { outline: none; border-color: var(--blue); }
+.field input::placeholder { color: var(--grey-400); }
+
+/* ── Messages ──────────────────────────────────────────────── */
+.msg { font-size: 13px; padding: 10px 13px; border-radius: var(--radius-sm); margin-top: 10px; display: none; }
+.msg.show   { display: block; }
+.msg-error  { background: var(--red-bg);   color: var(--red);   }
+.msg-success{ background: var(--green-bg); color: var(--green); }
+
+/* ── Modal ─────────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed; inset: 0; display: none;
+  align-items: center; justify-content: center;
+  padding: 20px; z-index: 50;
+  background: rgba(12,12,46,.65);
+  backdrop-filter: blur(4px);
+}
+.modal-overlay.active { display: flex; }
+.modal-box {
+  background: var(--white); border-radius: var(--radius-lg);
+  padding: 28px 26px; max-width: 390px; width: 100%;
+  box-shadow: var(--shadow-lg);
+  animation: slideUp .2s ease;
+}
+.modal-box h3 { font-size: 18px; color: var(--navy); margin-bottom: 18px; }
+.modal-actions { display: flex; gap: 10px; margin-top: 18px; }
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+/* ── Footer ────────────────────────────────────────────────── */
+.footer-note {
+  text-align: center; font-size: 11.5px;
+  color: rgba(255,255,255,.3);
+  margin-top: 28px; line-height: 1.8;
+}
+
+/* ============================================================
+   ADMIN PANEL
+   ============================================================ */
+
+/* ── Admin login ───────────────────────────────────────────── */
+.admin-login {
+  max-width: 380px; margin: 80px auto;
+  background: var(--white); border-radius: var(--radius-lg);
+  padding: 36px 30px; text-align: center;
+  box-shadow: var(--shadow-lg);
+}
+.admin-login .logo-wrap { margin-bottom: 22px; }
+.admin-login h2 { font-size: 18px; color: var(--navy); margin-bottom: 22px; font-weight: 700; }
+
+/* ── Admin top bar ─────────────────────────────────────────── */
+.admin-bar {
+  display: flex; justify-content: space-between;
+  align-items: center; margin-bottom: 24px;
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: var(--radius-lg);
+  padding: 14px 20px;
+}
+.admin-bar .logo-wrap { padding: 8px 16px; }
+.admin-bar .logo-wrap img { width: 120px; }
+.logout-link {
+  color: rgba(255,255,255,.6); font-size: 13px;
+  cursor: pointer; text-decoration: none;
+  border: 1px solid rgba(255,255,255,.2);
+  padding: 6px 14px; border-radius: 6px;
+  transition: all .15s;
+}
+.logout-link:hover { color: var(--white); border-color: rgba(255,255,255,.5); }
+
+/* ── Add form ──────────────────────────────────────────────── */
+.add-form {
+  background: var(--white); border-radius: var(--radius-lg);
+  padding: 22px 24px; margin-bottom: 24px;
+  box-shadow: var(--shadow-md);
+}
+.add-form h3 { font-size: 15px; font-weight: 700; color: var(--navy); margin-bottom: 16px; }
+.row-2 { display: flex; gap: 12px; }
+.row-2 .field { flex: 1; }
+
+/* ── Bookings list ─────────────────────────────────────────── */
+.bookings-list {
+  margin-top: 14px; border-top: 1px solid var(--grey-100);
+  padding-top: 12px; display: none;
+}
+.bookings-list.open { display: block; }
+
+.toggle-list {
+  font-size: 12.5px; color: var(--blue);
+  cursor: pointer; text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.toggle-list:hover { color: var(--navy); }
+
+/* ── Admin actions row ─────────────────────────────────────── */
+.admin-actions { display: flex; gap: 8px; margin-top: 14px; }
+.admin-actions button {
+  flex: 1; padding: 9px 6px; font-size: 13px;
+  border-radius: var(--radius-sm); border: none;
+  cursor: pointer; font-weight: 700; transition: opacity .15s;
+}
+.admin-actions button:hover { opacity: .85; }
+
+/* ── Booking rows ──────────────────────────────────────────── */
+.booking-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 0; border-bottom: 1px solid var(--grey-100); gap: 8px;
+}
+.booking-row:last-child { border-bottom: none; }
+.booking-info { flex: 1; }
+.b-name  { font-weight: 600; color: var(--navy); font-size: 13.5px; }
+.b-num   { font-size: 12px; color: var(--grey-400); }
+.booking-btns { display: flex; gap: 6px; flex-shrink: 0; }
+.btn-edit-bk {
+  background: var(--white); color: var(--navy); border: 1.5px solid var(--navy);
+  border-radius: 8px; padding: 6px 13px;
+  font-size: 12px; font-weight: 700; cursor: pointer; flex-shrink: 0;
+  transition: background .15s;
+}
+.btn-edit-bk:hover { background: var(--grey-50); }
+.btn-del-bk {
+  background: var(--red-bg); color: var(--red); border: none;
+  border-radius: 8px; padding: 6px 13px;
+  font-size: 12px; font-weight: 700; cursor: pointer; flex-shrink: 0;
+  transition: opacity .15s;
+}
+.btn-del-bk:hover { opacity: .8; }
+
+/* ── Inline edit form ──────────────────────────────────────── */
+.edit-form {
+  background: var(--grey-50); border: 1px solid var(--grey-100);
+  border-radius: var(--radius-sm);
+  padding: 14px; margin: 6px 0 10px; display: none;
+}
+.edit-form.open { display: block; }
+.edit-form input {
+  width: 100%; padding: 9px 11px; margin-bottom: 9px;
+  border-radius: 7px; border: 1.5px solid var(--grey-200);
+  font-size: 13.5px; color: var(--navy);
+}
+.edit-form input:focus { outline: none; border-color: var(--blue); }
+.edit-actions { display: flex; gap: 8px; }
+.edit-actions button {
+  flex: 1; padding: 9px; border-radius: 7px;
+  border: none; cursor: pointer; font-size: 13px; font-weight: 700;
+}
+.btn-save-edit   { background: var(--navy);      color: var(--white); }
+.btn-cancel-edit { background: var(--grey-100);  color: var(--grey-600); }
+
+/* ── Responsive — small screens (< 420px) ──────────────────── */
+@media (max-width: 420px) {
+  body { padding: 20px 12px 48px; }
+
+  .logo-wrap { padding: 10px 18px; }
+  .logo-wrap img { width: 130px; }
+
+  .title-card { padding: 20px 16px; }
+  .title-card h1 { font-size: 18px; }
+  .title-card p  { font-size: 13px; }
+
+  .shift-card { padding: 18px 16px; }
+  .shift-label { font-size: 15px; }
+
+  .modal-box { padding: 22px 18px; }
+  .modal-box h3 { font-size: 16px; }
+
+  /* Stack row-2 fields vertically on small screens */
+  .row-2 { flex-direction: column; gap: 0; }
+
+  /* Stack admin action buttons vertically */
+  .admin-actions { flex-direction: column; }
+  .admin-actions button { width: 100%; }
+
+  /* Admin top bar — smaller logo and tighter spacing */
+  .admin-bar { padding: 10px 14px; }
+  .admin-bar .logo-wrap img { width: 90px; }
+  .logout-link { font-size: 11.5px; padding: 5px 10px; }
+  .admin-link  { font-size: 11px;   padding: 5px 9px; }
+
+  .add-form { padding: 18px 16px; }
+
+  /* Staff Visa Status row now has 4 items (name, badge, Edit, Remove) — wrap on small screens */
+  .visa-row { flex-wrap: wrap; }
+  .visa-info { flex-basis: 100%; }
+
+  /* Admin Users — email + buttons were squeezing into one row; stack instead */
+  .user-row { flex-direction: column; align-items: stretch; gap: 12px; }
+  .user-actions { width: 100%; }
+  .user-actions button { flex: 1; }
+}

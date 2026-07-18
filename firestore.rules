@@ -1,0 +1,61 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /shifts/{shiftId} {
+      allow read: if true;
+
+      // Fix 12: shift management (create/update/delete) requires a real,
+      // admin-provisioned Firebase Auth session. admin.html has no public
+      // sign-up flow (no createUserWithEmailAndPassword anywhere) — every
+      // account is created manually via the Firebase Console by someone
+      // with project access — so request.auth != null reliably means
+      // "a trusted admin," not "any visitor."
+      allow create: if request.auth != null &&
+        request.resource.data.group in ['campus_residence', 'mixed', 'campus_summer']; // Fix 10
+      allow update, delete: if request.auth != null;
+
+      match /bookings/{bookingId} {
+        allow read: if true;
+
+        // Staff booking stays intentionally public/unauthenticated — that's
+        // the whole point of the flow, staff never log in. Protected instead
+        // by format validation, group-match, App Check, and the client-side
+        // honeypot/timing check. This is also the safety net for anyone who
+        // bypasses the website entirely and writes to Firestore directly.
+        allow create, update: if
+          request.resource.data.staffNumber is string &&
+          request.resource.data.staffNumber.matches('^[A-Z0-9]+$') &&
+          exists(/databases/$(database)/documents/blockedStaff/$(request.resource.data.staffNumber)) &&
+          request.resource.data.name is string &&
+          request.resource.data.name.size() >= 7 &&
+          request.resource.data.name.size() <= 100 &&
+          !request.resource.data.name.matches('.*[0-9].*') &&
+          request.resource.data.name.matches('.*[ ].*') &&
+          get(/databases/$(database)/documents/blockedStaff/$(request.resource.data.staffNumber)).data.group
+            == get(/databases/$(database)/documents/shifts/$(shiftId)).data.group; // Fix 10
+
+        // Fix 12: deleting a booking (e.g. cleaning up a duplicate) is an
+        // admin action — now gated by real auth instead of open to anyone.
+        allow delete: if request.auth != null;
+      }
+    }
+
+    match /blockedStaff/{staffId} {
+      allow read: if true;
+
+      // Fix 12: this hole is now properly closed. Earlier versions of this
+      // file only validated the *shape* of the data, because the admin
+      // panel was believed to have no real authentication behind it — that
+      // was based on an incomplete reading of the code. admin.html actually
+      // calls signInWithEmailAndPassword (real Firebase Auth), so
+      // request.auth != null is a meaningful, unforgeable check here.
+      allow create, update: if request.auth != null &&
+        staffId == request.resource.data.staffNumber &&
+        request.resource.data.staffNumber.matches('^[A-Z0-9]+$') &&
+        request.resource.data.name is string &&
+        request.resource.data.name.size() >= 3 &&
+        request.resource.data.group in ['campus_residence', 'mixed', 'campus_summer'];
+      allow delete: if request.auth != null;
+    }
+  }
+}

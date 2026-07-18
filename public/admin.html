@@ -1,0 +1,1361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <title>Admin Panel — ShiftFlow</title>
+  <link rel="stylesheet" href="styles.css">
+  <!-- SheetJS for Excel parsing -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    /* ── Top bar with admin link ── */
+    .admin-bar {
+      display: flex; justify-content: space-between;
+      align-items: center; margin-bottom: 24px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: var(--radius-lg);
+      padding: 12px 18px;
+    }
+    .logo-wrap { display:inline-flex; align-items:center; background:#fff; border-radius:10px; padding:8px 16px; }
+    .logo-wrap img { width:110px; display:block; }
+    .topbar-right { display:flex; align-items:center; gap:10px; }
+    .admin-link {
+      color: rgba(255,255,255,.55); font-size: 12.5px;
+      cursor: pointer; text-decoration: none;
+      border: 1px solid rgba(255,255,255,.15);
+      padding: 6px 12px; border-radius: 6px;
+      transition: all .15s;
+    }
+    .admin-link:hover { color:#fff; border-color:rgba(255,255,255,.4); }
+    .logout-link {
+      color: rgba(255,255,255,.6); font-size: 13px;
+      cursor: pointer; border: 1px solid rgba(255,255,255,.2);
+      padding: 6px 14px; border-radius: 6px; transition: all .15s;
+    }
+    .logout-link:hover { color:#fff; border-color:rgba(255,255,255,.5); }
+
+    /* ── Tab nav (2 main tabs) ── */
+    .tab-nav {
+      display: flex; gap: 4px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: 12px; padding: 5px;
+      margin-bottom: 24px;
+    }
+    .tab-btn {
+      flex: 1; padding: 10px 16px; border-radius: 9px;
+      border: none; cursor: pointer; font-size: 13.5px;
+      font-weight: 700; transition: all .15s;
+      background: transparent; color: rgba(255,255,255,.5);
+    }
+    .tab-btn.active {
+      background: var(--white); color: var(--navy);
+      box-shadow: 0 3px 10px rgba(12,12,46,.20);
+    }
+
+    /* ── Booking rows ── */
+    .booking-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 9px 0; border-bottom: 1px solid var(--grey-100); gap: 8px;
+    }
+    .booking-row:last-child { border-bottom: none; }
+    .booking-info { flex: 1; }
+    .b-name { font-weight: 600; color: var(--navy); font-size: 13.5px; }
+    .b-num  { font-size: 12px; color: var(--grey-400); }
+    .booking-btns { display: flex; gap: 6px; flex-shrink: 0; }
+    .btn-edit-bk {
+      background: var(--white); color: var(--navy); border: 1.5px solid var(--navy);
+      border-radius: 8px; padding: 6px 13px;
+      font-size: 12px; font-weight: 700; cursor: pointer; flex-shrink: 0;
+      transition: background .15s;
+    }
+    .btn-edit-bk:hover { background: var(--grey-50); }
+    .btn-del-bk {
+      background: var(--red-bg); color: var(--red); border: none;
+      border-radius: 8px; padding: 6px 13px;
+      font-size: 12px; font-weight: 700; cursor: pointer; flex-shrink: 0;
+      transition: opacity .15s;
+    }
+    .btn-del-bk:hover { opacity: .8; }
+
+    /* ── Inline edit form ── */
+    .edit-form {
+      background: var(--grey-50); border: 1px solid var(--grey-100);
+      border-radius: var(--radius-sm); padding: 14px;
+      margin: 4px 0 8px; display: none;
+    }
+    .edit-form.open { display: block; }
+    .edit-form input {
+      width: 100%; padding: 9px 11px; margin-bottom: 9px;
+      border-radius: 7px; border: 1.5px solid var(--grey-200); font-size: 13.5px;
+    }
+    .edit-form input:focus { outline: none; border-color: var(--blue); }
+    .edit-actions { display: flex; gap: 8px; }
+    .edit-actions button {
+      flex: 1; padding: 9px; border-radius: 7px;
+      border: none; cursor: pointer; font-size: 13px; font-weight: 700;
+    }
+    .btn-save-edit   { background: var(--navy); color: var(--white); }
+    .btn-cancel-edit { background: var(--grey-100); color: var(--grey-600); }
+
+    /* ── User management ── */
+    .user-card {
+      background: var(--white); border-radius: var(--radius-md);
+      padding: 18px 20px; margin-bottom: 12px; box-shadow: var(--shadow-sm);
+    }
+    .user-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .user-info { flex: 1; }
+    .user-email { font-weight: 700; color: var(--navy); font-size: 14px; }
+    .user-meta  { font-size: 12px; color: var(--grey-400); margin-top: 3px; }
+    .user-actions { display: flex; gap: 8px; flex-shrink: 0; }
+    .user-actions button {
+      padding: 7px 14px; border-radius: 7px; border: none;
+      cursor: pointer; font-size: 12.5px; font-weight: 700;
+    }
+    .btn-reset  { background: var(--blue-light); color: var(--blue); }
+    .btn-remove { background: var(--red-bg); color: var(--red); }
+    .badge-you {
+      display: inline-block; font-size: 10px; font-weight: 700;
+      background: var(--green-bg); color: var(--green);
+      padding: 2px 8px; border-radius: 10px; margin-left: 8px; vertical-align: middle;
+    }
+
+    /* ── Invite form ── */
+    .invite-form {
+      background: var(--white); border-radius: var(--radius-md);
+      padding: 20px 22px; margin-bottom: 20px; box-shadow: var(--shadow-md);
+    }
+    .invite-form h3 { font-size: 15px; font-weight: 700; color: var(--navy); margin-bottom: 6px; }
+    .invite-form p  { font-size: 13px; color: var(--grey-400); margin-bottom: 16px; }
+    .btn-invite {
+      padding: 12px 20px;
+      background: linear-gradient(135deg, var(--navy) 0%, var(--blue) 130%);
+      color: var(--white);
+      border: none; border-radius: var(--radius-sm);
+      font-size: 13px; font-weight: 700; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 8px;
+      box-shadow: 0 4px 14px rgba(43,108,255,.25);
+      transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
+    }
+    .btn-invite:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 22px rgba(43,108,255,.35);
+      filter: brightness(1.06);
+    }
+    .btn-invite:disabled { opacity: .6; cursor: not-allowed; transform: none; }
+
+    /* ── Visa check ── */
+    .visa-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 0; border-bottom: 1px solid var(--grey-100); gap: 8px;
+    }
+    .visa-row:last-child { border-bottom: none; }
+    .visa-info { flex: 1; }
+    .visa-name   { font-weight: 600; color: var(--navy); font-size: 13.5px; }
+    .visa-detail { margin-top: 4px; }
+    .staff-tag {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: var(--blue-light); color: var(--blue);
+      font-size: 11px; font-weight: 700; letter-spacing: .3px;
+      padding: 3px 10px; border-radius: 20px;
+    }
+    .visa-expiry-badge {
+      font-size: 11.5px; font-weight: 700;
+      padding: 4px 10px; border-radius: 20px; white-space: nowrap; flex-shrink: 0;
+    }
+    .expiry-expired  { background: var(--red-bg);   color: var(--red);   }
+    .expiry-soon     { background: var(--amber-bg);  color: var(--amber); }
+    .expiry-ok       { background: var(--green-bg);  color: var(--green); }
+    .btn-remove-visa {
+      background: var(--red-bg); color: var(--red);
+      border: none; border-radius: 6px; padding: 5px 11px;
+      font-size: 12px; font-weight: 700; cursor: pointer; flex-shrink: 0;
+    }
+    .visa-counter {
+      display: inline-flex; align-items: center; justify-content: center;
+      background: var(--red); color: #fff;
+      font-size: 11px; font-weight: 700;
+      width: 20px; height: 20px; border-radius: 50%;
+      margin-left: 6px; vertical-align: middle;
+    }
+    .file-input-wrap {
+      display: flex; align-items: center; gap: 8px;
+      width: 100%; padding: 12px; border: 2px dashed var(--grey-200);
+      border-radius: var(--radius-sm); cursor: pointer;
+      background: var(--grey-50); font-size: 13px; color: var(--grey-600);
+      transition: border-color .15s;
+    }
+    .file-input-wrap:hover,
+    .file-input-wrap:focus-visible { border-color: var(--blue); outline: none; }
+    /* Native input is visually hidden but stays focusable/functional via its <label> */
+    .file-input-native {
+      position: absolute; width: 1px; height: 1px;
+      padding: 0; margin: -1px; overflow: hidden;
+      clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Reusable confirmation modal (replaces native browser confirm()) ── -->
+<div class="modal-overlay" id="confirmOverlay">
+  <div class="modal-box">
+    <h3 id="confirmTitle">Are you sure?</h3>
+    <p id="confirmMessage" style="font-size:13.5px;color:var(--grey-600);line-height:1.6;white-space:pre-line;margin-bottom:4px;"></p>
+    <div class="modal-actions">
+      <button class="btn btn-outline" type="button" id="confirmCancelBtn" style="flex:1;">Cancel</button>
+      <button class="btn btn-primary" type="button" id="confirmOkBtn" style="flex:1;">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- ── Login ── -->
+  <div id="loginBox" style="max-width:380px;margin:80px auto;background:#fff;border-radius:20px;padding:36px 30px;text-align:center;box-shadow:0 20px 48px rgba(12,12,46,.30);">
+    <div class="logo-wrap" style="margin-bottom:22px;display:flex;justify-content:center;">
+      <img src="logo.png" alt="ShiftFlow" style="width:140px;">
+    </div>
+    <h2 style="font-size:18px;color:#0c0c2e;margin-bottom:6px;font-weight:700;">Administrator Panel</h2>
+    <p style="font-size:13px;color:#9a9ab8;margin-bottom:24px;">Sign in with your admin account</p>
+    <div class="field">
+      <label>Email</label>
+      <input type="email" id="loginEmail" placeholder="your@email.com">
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="loginPassword" placeholder="Your password">
+    </div>
+    <div class="msg" id="loginMsg"></div>
+    <button class="btn btn-primary" id="btnLogin" style="margin-top:6px;">Sign in</button>
+    <p style="margin-top:16px;font-size:13px;">
+      <span id="btnForgot" style="color:#2b6cff;cursor:pointer;text-decoration:underline;">Forgot password?</span>
+    </p>
+    <div class="msg" id="resetMsg" style="margin-top:8px;"></div>
+  </div>
+
+  <!-- ── Admin panel ── -->
+  <div id="adminPanel" style="display:none;">
+
+    <!-- Top bar: logo | [⚙ Admin Users] [Log out] -->
+    <div class="admin-bar">
+      <div class="logo-wrap">
+        <img src="logo.png" alt="ShiftFlow">
+      </div>
+      <div class="topbar-right">
+        <span class="admin-link" onclick="openAdminUsers()">⚙ Admin Users</span>
+        <span class="logout-link" id="btnLogout">Log out</span>
+      </div>
+    </div>
+
+    <!-- 2 main tabs -->
+    <div class="tab-nav">
+      <button class="tab-btn active" id="tabShifts" onclick="switchTab('shifts')">📅 Shifts</button>
+      <button class="tab-btn" id="tabVisa" onclick="switchTab('visa')">
+        🛂 Visa Check
+      </button>
+    </div>
+
+    <!-- ── SHIFTS TAB ── -->
+    <div id="panelShifts">
+      <div class="add-form">
+        <h3>+ Add new date</h3>
+        <div class="row-2">
+          <div class="field">
+            <label>Label (e.g. Monday)</label>
+            <input type="text" id="newLabel" placeholder="Monday">
+          </div>
+          <div class="field">
+            <label>Date</label>
+            <input type="date" id="newDate">
+          </div>
+        </div>
+        <div class="row-2">
+          <div class="field">
+            <label>Number of spots</label>
+            <input type="number" id="newCapacity" placeholder="50" min="1">
+          </div>
+          <div class="field">
+            <label>Shift time <span style="color:#bbb;">(optional)</span></label>
+            <input type="text" id="newTime" placeholder="e.g. 08:00 - 16:00">
+          </div>
+        </div>
+        <div class="field">
+          <label>Group</label>
+          <select id="newGroup">
+            <option value="">Select a group...</option>
+            <option value="campus_residence">Campus/Residence</option>
+            <option value="mixed">Summer Seasonal</option>
+            <option value="campus_summer">Campus Extra Shift</option>
+          </select>
+        </div>
+        <div class="msg" id="addMsg"></div>
+        <button class="btn btn-primary" id="btnAdd">Add date</button>
+      </div>
+      <div id="shiftsAdminList"></div>
+    </div>
+
+    <!-- ── VISA CHECK TAB ── -->
+    <div id="panelVisa" style="display:none;">
+
+      <!-- Upload Excel -->
+      <div class="add-form">
+        <h3>📂 Upload Excel file</h3>
+        <p style="font-size:13px;color:#9a9ab8;margin-bottom:14px;">
+          Upload the spreadsheet with staff visa data. Columns required:
+          <b>Staff Number</b>, <b>Name</b>, <b>Visa Expiry</b> (Visa Expiry can be left blank).
+          Uploading a new file <b>updates the list</b> — existing staff keep their
+          saved visa date unless the file provides a new one; new staff are added.
+        </p>
+        <div class="field">
+          <label>Select .xlsx file</label>
+          <label class="file-input-wrap" for="visaFile" id="fileWrapLabel" tabindex="0">
+            <span id="fileNameDisplay">📄 Choose file...</span>
+          </label>
+          <input type="file" id="visaFile" accept=".xlsx,.xls" class="file-input-native">
+        </div>
+        <div class="msg" id="uploadMsg"></div>
+        <button class="btn-invite" id="btnUploadVisa" style="margin-top:8px;">⬆️ Import from Excel</button>
+      </div>
+
+      <!-- Add manually -->
+      <div class="add-form">
+        <h3>✏️ Add manually</h3>
+        <div class="row-2">
+          <div class="field">
+            <label>Staff Number</label>
+            <input type="text" id="visaStaffNum" placeholder="e.g. 12345">
+          </div>
+          <div class="field">
+            <label>Full name</label>
+            <input type="text" id="visaName" placeholder="Staff full name">
+          </div>
+        </div>
+        <div class="row-2">
+          <div class="field">
+            <label>Group</label>
+            <select id="visaGroup">
+              <option value="">Select a group...</option>
+              <option value="campus_residence">Campus/Residence</option>
+              <option value="mixed">Summer Seasonal</option>
+              <option value="campus_summer">Campus Extra Shift</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Available period <span style="color:#bbb;">(reference only, Summer Seasonal group)</span></label>
+            <select id="visaPeriod">
+              <option value="">—</option>
+              <option value="morning">Morning</option>
+              <option value="afternoon">Afternoon</option>
+              <option value="both">Both</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label>Visa expiry date <span style="color:#bbb;">(optional)</span></label>
+          <input type="date" id="visaExpiry">
+        </div>
+        <div class="msg" id="manualMsg"></div>
+        <button class="btn-invite" id="btnAddVisa" style="margin-top:8px;">➕ Add to Staff Visa Status</button>
+      </div>
+
+      <!-- Staff Visa Status list -->
+      <div class="add-form">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+          <h3 style="margin:0;">🪪 Staff Visa Status (<span id="visaCount">0</span>)</h3>
+          <div style="display:flex;gap:8px;">
+            <button id="btnExportVisa"
+              style="background:var(--blue-light);color:var(--blue);border:none;border-radius:7px;padding:7px 14px;font-size:12.5px;font-weight:700;cursor:pointer;">
+              ⬇️ Export to Excel
+            </button>
+            <button id="btnClearVisa"
+              style="background:#fde8e8;color:#c0392b;border:none;border-radius:7px;padding:7px 14px;font-size:12.5px;font-weight:700;cursor:pointer;">
+              Clear all
+            </button>
+          </div>
+        </div>
+        <input type="text" id="visaSearch" placeholder="Search by name or staff number..."
+          style="width:100%;padding:10px 12px;border:1.5px solid #dde0ef;border-radius:8px;font-size:13.5px;margin-bottom:12px;">
+        <div id="visaList"></div>
+      </div>
+
+    </div>
+
+    <!-- ── ADMIN USERS PANEL (hidden overlay) ── -->
+    <div id="panelUsers" style="display:none;">
+      <div class="invite-form">
+        <h3>+ Add Admin User</h3>
+        <p>Invite a team leader, supervisor or admin. They will receive an email to set their own password.</p>
+        <div class="field">
+          <label>Email address</label>
+          <input type="email" id="inviteEmail" placeholder="e.g. supervisor@email.com" style="width:100%;">
+        </div>
+        <div class="msg" id="inviteMsg"></div>
+        <button class="btn-invite" id="btnInvite" style="margin-top:10px;">Send invite</button>
+      </div>
+      <div id="usersList">
+        <div class="user-card"><p style="color:#888;margin:0;font-size:13px;">Loading users...</p></div>
+      </div>
+      <button onclick="closeAdminUsers()"
+        style="width:100%;margin-top:12px;padding:11px;background:rgba(255,255,255,.08);color:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.15);border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;">
+        ← Back to main panel
+      </button>
+    </div>
+
+  </div>
+
+  <div class="footer-note">ShiftFlow &middot; Administrator panel &middot; Restricted access</div>
+</div>
+
+<script src="firebase-config.js"></script>
+<script type="module">
+import { initializeApp }    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check.js";
+import {
+  getAuth, signInWithEmailAndPassword,
+  signOut, onAuthStateChanged, sendPasswordResetEmail
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {
+  getFirestore, collection, doc, setDoc,
+  addDoc, updateDoc, deleteDoc,
+  onSnapshot, query, orderBy, where,
+  serverTimestamp, getDocs, runTransaction, writeBatch
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
+import {
+  normaliseStaff, toTitleCase, isValidName, safeDocId,
+  formatDateDisplay, showMsg, clearMsg
+} from "./shared.js"; // Fix 11
+
+const app       = initializeApp(firebaseConfig);
+const auth      = getAuth(app);
+const db        = getFirestore(app);
+const functions = getFunctions(app);
+
+if (typeof APPCHECK_SITE_KEY === 'string' && APPCHECK_SITE_KEY !== 'COLE_AQUI_A_SITE_KEY') {
+  try {
+    initializeAppCheck(app, {
+      provider: new ReCaptchaV3Provider(APPCHECK_SITE_KEY),
+      isTokenAutoRefreshEnabled: true,
+    });
+  } catch (err) {
+    console.error('App Check failed to initialise:', err);
+  }
+}
+
+const createAdminUser   = httpsCallable(functions, 'createAdminUser');
+const deleteAdminUser   = httpsCallable(functions, 'deleteAdminUser');
+const listAdminUsers    = httpsCallable(functions, 'listAdminUsers');
+
+// ── Reusable confirmation modal (replaces native confirm()) ─
+// Usage: if (!(await confirmModal({ title, message, confirmLabel, danger }))) return;
+function confirmModal({ title = 'Are you sure?', message = '', confirmLabel = 'Confirm', danger = false } = {}) {
+  const overlay = document.getElementById('confirmOverlay');
+  const okBtn    = document.getElementById('confirmOkBtn');
+  const cancelBtn = document.getElementById('confirmCancelBtn');
+
+  document.getElementById('confirmTitle').textContent   = title;
+  document.getElementById('confirmMessage').textContent = message;
+  okBtn.textContent = confirmLabel;
+  okBtn.className   = danger ? 'btn btn-danger-solid' : 'btn btn-primary';
+  okBtn.style.flex   = '1';
+
+  return new Promise(resolve => {
+    function cleanup(result) {
+      overlay.classList.remove('active');
+      okBtn.removeEventListener('click', onOk);
+      cancelBtn.removeEventListener('click', onCancel);
+      overlay.removeEventListener('click', onOverlay);
+      document.removeEventListener('keydown', onKey);
+      resolve(result);
+    }
+    function onOk()      { cleanup(true); }
+    function onCancel()  { cleanup(false); }
+    function onOverlay(e){ if (e.target === overlay) cleanup(false); }
+    function onKey(e)    { if (e.key === 'Escape') cleanup(false); }
+
+    okBtn.addEventListener('click', onOk);
+    cancelBtn.addEventListener('click', onCancel);
+    overlay.addEventListener('click', onOverlay);
+    document.addEventListener('keydown', onKey);
+    overlay.classList.add('active');
+  });
+}
+
+// ── Fix 1: Normalise staff number ────────────────────────
+// Hardened against mobile-keyboard quirks: some phones/IMEs insert
+// full-width digits (e.g. "５" instead of "5") or invisible characters
+// (zero-width spaces) that LOOK identical on screen but don't match
+// as text. This strips both, keeping only real A-Z/0-9.
+const GROUP_LABELS = { campus_residence: 'Campus/Residence', mixed: 'Summer Seasonal', campus_summer: 'Campus Extra Shift' };
+function groupLabel(code) { return GROUP_LABELS[code] || 'No group'; }
+
+// Fix 11: shared utilities now live in shared.js, imported at the
+// top of this script — see that file for normaliseStaff,
+// toTitleCase, isValidName, safeDocId, formatDateDisplay, showMsg,
+// clearMsg (previously duplicated here and in index.html).
+
+// ── Panel navigation ──────────────────────────────────────
+const panelShifts = document.getElementById('panelShifts');
+const panelVisa   = document.getElementById('panelVisa');
+const panelUsers  = document.getElementById('panelUsers');
+const tabNav      = document.querySelector('.tab-nav');
+
+window.switchTab = (tab) => {
+  panelShifts.style.display = tab === 'shifts' ? 'block' : 'none';
+  panelVisa.style.display   = tab === 'visa'   ? 'block' : 'none';
+  panelUsers.style.display  = 'none';
+  tabNav.style.display      = 'flex';
+  document.getElementById('tabShifts').classList.toggle('active', tab === 'shifts');
+  document.getElementById('tabVisa').classList.toggle('active',   tab === 'visa');
+  sessionStorage.setItem('adminTab', tab);
+  if (tab === 'visa') loadVisaList();
+};
+
+window.openAdminUsers = () => {
+  panelShifts.style.display = 'none';
+  panelVisa.style.display   = 'none';
+  panelUsers.style.display  = 'block';
+  tabNav.style.display      = 'none';
+  loadUsers();
+};
+window.closeAdminUsers = () => switchTab('shifts');
+
+// ── Auth ──────────────────────────────────────────────────
+const loginBox   = document.getElementById('loginBox');
+const adminPanel = document.getElementById('adminPanel');
+const loginMsg   = document.getElementById('loginMsg');
+const resetMsg   = document.getElementById('resetMsg');
+
+onAuthStateChanged(auth, user => {
+  if (user) {
+    loginBox.style.display   = 'none';
+    adminPanel.style.display = 'block';
+    window.__currentUser = user;
+    startListeningShifts();
+    startListeningVisa();
+    // Restore last active tab
+    const savedTab = sessionStorage.getItem('adminTab') || 'shifts';
+    switchTab(savedTab);
+  } else {
+    loginBox.style.display   = 'block';
+    adminPanel.style.display = 'none';
+    window.__currentUser = null;
+  }
+});
+
+document.getElementById('btnLogin').addEventListener('click', async () => {
+  const email    = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const btn      = document.getElementById('btnLogin');
+  if (!email || !password) { showMsg(loginMsg, 'Please enter your email and password.', 'error'); return; }
+  btn.disabled = true; btn.textContent = 'Signing in...';
+  try {
+    await signInWithEmailAndPassword(auth, email, password);
+  } catch (err) {
+    const msgs = {
+      'auth/invalid-credential': 'Invalid email or password.',
+      'auth/too-many-requests':  'Too many attempts. Please try again later.',
+    };
+    showMsg(loginMsg, msgs[err.code] || 'Sign in failed. Please try again.', 'error');
+  }
+  btn.disabled = false; btn.textContent = 'Sign in';
+});
+document.getElementById('loginPassword').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('btnLogin').click(); });
+document.getElementById('btnForgot').addEventListener('click', async () => {
+  const email = document.getElementById('loginEmail').value.trim();
+  if (!email) { showMsg(resetMsg, 'Enter your email above first.', 'error'); return; }
+  try {
+    await sendPasswordResetEmail(auth, email);
+    showMsg(resetMsg, `Reset email sent to ${email}`, 'success');
+  } catch (err) { showMsg(resetMsg, 'Could not send reset email.', 'error'); }
+});
+document.getElementById('btnLogout').addEventListener('click', () => signOut(auth));
+
+// ── SHIFTS ────────────────────────────────────────────────
+const addMsg = document.getElementById('addMsg');
+document.getElementById('btnAdd').addEventListener('click', async () => {
+  const label    = document.getElementById('newLabel').value.trim();
+  const date     = document.getElementById('newDate').value;
+  const capacity = parseInt(document.getElementById('newCapacity').value, 10);
+  const time     = document.getElementById('newTime').value.trim();
+  const group    = document.getElementById('newGroup').value; // Fix 10: group isolation
+  if (!label || !date || !capacity || capacity < 1) {
+    addMsg.textContent = 'Please fill in all required fields correctly.';
+    addMsg.className   = 'msg show msg-error'; return;
+  }
+  if (!group) {
+    addMsg.textContent = 'Please select a group for this shift.';
+    addMsg.className   = 'msg show msg-error'; return;
+  }
+  const btn = document.getElementById('btnAdd');
+  btn.disabled = true; btn.textContent = 'Adding...';
+  try {
+    await addDoc(collection(db, 'shifts'), {
+      label, date, capacity, time: time || null, group,
+      bookedCount: 0, active: true, createdAt: serverTimestamp(),
+    });
+    ['newLabel','newDate','newCapacity','newTime'].forEach(id => { document.getElementById(id).value = ''; });
+    document.getElementById('newGroup').value = '';
+    addMsg.textContent = 'Date added successfully!';
+    addMsg.className   = 'msg show msg-success';
+    setTimeout(() => { addMsg.className = 'msg'; }, 2500);
+  } catch (err) {
+    addMsg.textContent = 'Error adding date. Please try again.';
+    addMsg.className   = 'msg show msg-error';
+  }
+  btn.disabled = false; btn.textContent = 'Add date';
+});
+
+function startListeningShifts() {
+  onSnapshot(query(collection(db, 'shifts'), orderBy('date', 'asc')), snapshot => {
+    const shifts = [];
+    window.__shiftsMap = {};
+    snapshot.forEach(d => {
+      const s = { id: d.id, ...d.data() };
+      shifts.push(s);
+      window.__shiftsMap[d.id] = s;
+    });
+    renderShifts(shifts);
+  });
+}
+
+function renderShifts(shifts) {
+  const container = document.getElementById('shiftsAdminList');
+  if (shifts.length === 0) {
+    container.innerHTML = '<div class="shift-card"><p style="margin:0;color:#888;">No dates added yet.</p></div>'; return;
+  }
+  container.innerHTML = shifts.map(s => {
+    const remaining = Math.max(0, s.capacity - s.bookedCount);
+    const pct       = Math.min(100, Math.round((s.bookedCount / s.capacity) * 100));
+    const isActive  = s.active !== false;
+    const timeHtml  = s.time ? ` &middot; ${s.time}` : '';
+    const badge     = !isActive
+      ? `<span class="shift-badge badge-full">Closed (hidden)</span>`
+      : `<span class="shift-badge ${remaining === 0 ? 'badge-full' : 'badge-open'}">${s.bookedCount}/${s.capacity}</span>`;
+    const safeLabel = String(s.label).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    return `
+      <div class="shift-card" style="${!isActive ? 'opacity:0.65;' : ''}">
+        <div class="shift-top">
+          <div>
+            <p class="shift-label">${s.label}</p>
+            <div class="shift-date">${formatDateDisplay(s.date)}${timeHtml}</div>
+            <div class="shift-date" style="margin-top:2px;">${groupLabel(s.group)}</div>
+          </div>
+          ${badge}
+        </div>
+        <div class="shift-bar-wrap"><div class="shift-bar-fill" style="width:${pct}%"></div></div>
+        <span class="toggle-list" onclick="window.__toggleBookings('${s.id}')">View bookings</span>
+        <span class="toggle-list" style="margin-left:14px;"
+          onclick="window.__exportCsv('${s.id}')">Export CSV</span>
+        <div class="bookings-list" id="blist-${s.id}"></div>
+
+        <div class="edit-form" id="sf-${s.id}">
+          <div class="field" style="margin-bottom:9px;">
+            <label>Label</label>
+            <input type="text" id="sf-label-${s.id}" value="${safeLabel}">
+          </div>
+          <div class="row-2">
+            <div class="field">
+              <label>Date</label>
+              <input type="date" id="sf-date-${s.id}" value="${s.date}">
+            </div>
+            <div class="field">
+              <label>Time <span style="color:#bbb;">(optional)</span></label>
+              <input type="text" id="sf-time-${s.id}" value="${s.time || ''}" placeholder="e.g. 08:00 - 16:00">
+            </div>
+          </div>
+          <div class="field" style="margin-bottom:9px;">
+            <label>Number of spots</label>
+            <input type="number" id="sf-capacity-${s.id}" value="${s.capacity}" min="1">
+          </div>
+          <div class="field" style="margin-bottom:0;">
+            <label>Group</label>
+            <select id="sf-group-${s.id}">
+              <option value="campus_residence" ${s.group === 'campus_residence' ? 'selected' : ''}>Campus/Residence</option>
+              <option value="mixed" ${s.group === 'mixed' ? 'selected' : ''}>Summer Seasonal</option>
+              <option value="campus_summer" ${s.group === 'campus_summer' ? 'selected' : ''}>Campus Extra Shift</option>
+            </select>
+          </div>
+          <div class="msg" id="sf-msg-${s.id}"></div>
+          <div class="edit-actions">
+            <button class="btn-cancel-edit" onclick="window.__closeShiftEdit('${s.id}')">Cancel</button>
+            <button class="btn-save-edit"   onclick="window.__saveShiftEdit('${s.id}')">Save changes</button>
+          </div>
+        </div>
+
+        <div class="admin-actions">
+          <button style="border-radius:8px;padding:9px;font-weight:700;cursor:pointer;background:#fff;border:1.5px solid #0c0c2e;color:#0c0c2e;"
+            onclick="window.__openShiftEdit('${s.id}')">Edit details</button>
+          <button style="border-radius:8px;padding:9px;font-weight:700;cursor:pointer;border:none;background:${isActive?'#fff4e0':'#e8f7ee'};color:${isActive?'#b8740a':'#1d8a4c'};"
+            onclick="window.__toggleActive('${s.id}',${isActive})">${isActive ? 'Close (hide)' : 'Reopen'}</button>
+          <button style="border-radius:8px;padding:9px;font-weight:700;cursor:pointer;border:none;background:#fde8e8;color:#c0392b;"
+            onclick="window.__deleteShift('${s.id}')">Delete</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ── Bookings ──────────────────────────────────────────────
+window.__toggleBookings = async (shiftId) => {
+  const el = document.getElementById(`blist-${shiftId}`);
+  if (el.classList.contains('open')) { el.classList.remove('open'); return; }
+  el.classList.add('open');
+  await loadBookings(shiftId);
+};
+
+async function loadBookings(shiftId) {
+  const el = document.getElementById(`blist-${shiftId}`);
+  if (!el) return;
+  el.innerHTML = '<p style="font-size:12px;color:#999;padding:8px 0;">Loading...</p>';
+  try {
+    const snap = await getDocs(collection(db, 'shifts', shiftId, 'bookings'));
+    if (snap.empty) { el.innerHTML = '<p style="font-size:12px;color:#999;padding:8px 0;">No bookings yet.</p>'; return; }
+    let html = '';
+    snap.forEach(d => {
+      const b = d.data(); const bid = d.id;
+      const safeName = (b.name || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      html += `
+        <div class="booking-row" id="row-${bid}">
+          <div class="booking-info">
+            <div class="b-name">${b.name}</div>
+            <div class="b-num">#${b.staffNumber}</div>
+          </div>
+          <div class="booking-btns">
+            <button class="btn-edit-bk" onclick="window.__openEdit('${shiftId}','${bid}','${safeName}','${b.staffNumber}')">Edit</button>
+            <button class="btn-del-bk"  onclick="window.__removeBooking('${shiftId}','${bid}','${safeName}')">Remove</button>
+          </div>
+        </div>
+        <div class="edit-form" id="ef-${bid}">
+          <input type="text" id="ef-name-${bid}"  placeholder="Full name"    value="${b.name}">
+          <input type="text" id="ef-staff-${bid}" placeholder="Staff Number" value="${b.staffNumber}">
+          <div class="msg" id="ef-msg-${bid}"></div>
+          <div class="edit-actions">
+            <button class="btn-cancel-edit" onclick="window.__closeEdit('${bid}')">Cancel</button>
+            <button class="btn-save-edit"   onclick="window.__saveEdit('${shiftId}','${bid}')">Save</button>
+          </div>
+        </div>`;
+    });
+    el.innerHTML = html;
+  } catch (err) { el.innerHTML = '<p style="font-size:12px;color:#c0392b;">Error loading bookings.</p>'; }
+}
+
+window.__openEdit = (shiftId, bid, name, staff) => {
+  document.getElementById(`ef-name-${bid}`).value  = name;
+  document.getElementById(`ef-staff-${bid}`).value = staff;
+  const msg = document.getElementById(`ef-msg-${bid}`);
+  msg.textContent = ''; msg.className = 'msg';
+  document.getElementById(`ef-${bid}`).classList.add('open');
+};
+window.__closeEdit = bid => document.getElementById(`ef-${bid}`).classList.remove('open');
+window.__saveEdit = async (shiftId, bid) => {
+  const name  = toTitleCase(document.getElementById(`ef-name-${bid}`).value.trim());
+  const staff = normaliseStaff(document.getElementById(`ef-staff-${bid}`).value);
+  const msgEl = document.getElementById(`ef-msg-${bid}`);
+  if (!name || !staff) { msgEl.textContent = 'Both fields are required.'; msgEl.className = 'msg show msg-error'; return; }
+  if (!isValidName(name)) {
+    msgEl.textContent = 'Please enter a full name — first and last name, letters only.';
+    msgEl.className = 'msg show msg-error'; return;
+  }
+  const btn = document.querySelector(`#ef-${bid} .btn-save-edit`);
+  btn.disabled = true; btn.textContent = 'Saving...';
+  try {
+    // The database now requires the staff number to exist in Staff Visa
+    // Status before accepting a booking write — check here first so the
+    // admin gets a clear message instead of a confusing save error.
+    const staffSnap = await getDocs(query(collection(db, 'blockedStaff'), where('staffNumber', '==', staff)));
+    if (staffSnap.empty) {
+      msgEl.textContent = 'This Staff Number was not found in Staff Visa Status. Add them there first.';
+      msgEl.className = 'msg show msg-error';
+      btn.disabled = false; btn.textContent = 'Save';
+      return;
+    }
+    await updateDoc(doc(db, 'shifts', shiftId, 'bookings', bid), { name, staffNumber: staff });
+    window.__closeEdit(bid);
+    await loadBookings(shiftId);
+  } catch (err) { msgEl.textContent = 'Error saving.'; msgEl.className = 'msg show msg-error'; }
+  btn.disabled = false; btn.textContent = 'Save';
+};
+window.__removeBooking = async (shiftId, bid, name) => {
+  const ok = await confirmModal({
+    title: 'Remove booking?',
+    message: `Remove "${name}" from this shift? This will free up 1 spot.`,
+    confirmLabel: 'Remove', danger: true
+  });
+  if (!ok) return;
+  try {
+    await runTransaction(db, async t => {
+      const ref  = doc(db, 'shifts', shiftId);
+      const snap = await t.get(ref);
+      t.update(ref, { bookedCount: Math.max(0, (snap.data().bookedCount||0) - 1) });
+      t.delete(doc(db, 'shifts', shiftId, 'bookings', bid));
+    });
+    await loadBookings(shiftId);
+  } catch (err) { alert('Error removing booking.'); }
+};
+// ── Full shift edit (label, date, time) ──────────────────
+window.__openShiftEdit = (shiftId) => {
+  const msg = document.getElementById(`sf-msg-${shiftId}`);
+  if (msg) { msg.textContent = ''; msg.className = 'msg'; }
+  document.getElementById(`sf-${shiftId}`).classList.add('open');
+};
+window.__closeShiftEdit = (shiftId) => {
+  document.getElementById(`sf-${shiftId}`).classList.remove('open');
+};
+window.__saveShiftEdit = async (shiftId) => {
+  const label    = document.getElementById(`sf-label-${shiftId}`).value.trim();
+  const date     = document.getElementById(`sf-date-${shiftId}`).value;
+  const time     = document.getElementById(`sf-time-${shiftId}`).value.trim();
+  const capacity = parseInt(document.getElementById(`sf-capacity-${shiftId}`).value, 10);
+  const group    = document.getElementById(`sf-group-${shiftId}`).value; // Fix 10
+  const msgEl    = document.getElementById(`sf-msg-${shiftId}`);
+  if (!label || !date || !capacity || capacity < 1 || !group) {
+    msgEl.textContent = 'Label, date, group and a valid number of spots are required.';
+    msgEl.className   = 'msg show msg-error';
+    return;
+  }
+  // Warn if new capacity is below current bookings
+  const s = (window.__shiftsMap || {})[shiftId];
+  if (s && capacity < s.bookedCount) {
+    const ok = await confirmModal({
+      title: 'This shift is over capacity',
+      message: `There are already ${s.bookedCount} bookings for this shift. Setting capacity to ${capacity} will show it as over-booked.\n\nContinue anyway?`,
+      confirmLabel: 'Continue', danger: true
+    });
+    if (!ok) return;
+  }
+  const btn = document.querySelector(`#sf-${shiftId} .btn-save-edit`);
+  btn.disabled = true; btn.textContent = 'Saving...';
+  try {
+    await updateDoc(doc(db, 'shifts', shiftId), { label, date, time: time || null, capacity, group });
+    window.__closeShiftEdit(shiftId);
+  } catch (err) {
+    msgEl.textContent = 'Error saving changes.';
+    msgEl.className   = 'msg show msg-error';
+  }
+  btn.disabled = false; btn.textContent = 'Save changes';
+};
+
+window.__toggleActive = async (shiftId, isActive) => {
+  const ok = await confirmModal({
+    title: isActive ? 'Close this date?' : 'Reopen this date?',
+    message: isActive
+      ? 'Staff will no longer be able to see or book this date. You can reopen it anytime.'
+      : 'This date will become visible and bookable by staff again.',
+    confirmLabel: isActive ? 'Close' : 'Reopen'
+  });
+  if (!ok) return;
+  try { await updateDoc(doc(db, 'shifts', shiftId), { active: !isActive }); }
+  catch (err) { alert('Error updating status.'); }
+};
+window.__deleteShift = async (shiftId) => {
+  const s = (window.__shiftsMap || {})[shiftId];
+  const label = s ? s.label : 'this shift';
+  const ok = await confirmModal({
+    title: 'Delete this shift?',
+    message: `Permanently delete "${label}"? All bookings will also be removed. This cannot be undone.`,
+    confirmLabel: 'Delete', danger: true
+  });
+  if (!ok) return;
+  try {
+    // Fix 7: delete sub-collection bookings first to avoid orphaned data
+    const bookingsSnap = await getDocs(collection(db, 'shifts', shiftId, 'bookings'));
+    if (!bookingsSnap.empty) {
+      const batch = writeBatch(db);
+      bookingsSnap.forEach(d => batch.delete(d.ref));
+      await batch.commit();
+    }
+    await deleteDoc(doc(db, 'shifts', shiftId));
+  } catch (err) { alert('Error deleting shift.'); }
+};
+
+// ── Export CSV with shift info ────────────────────────────
+window.__exportCsv = async (shiftId) => {
+  const s = (window.__shiftsMap || {})[shiftId];
+  const label = s ? s.label : shiftId;
+  const date  = s ? s.date  : '';
+  const time  = s ? (s.time || 'N/A') : 'N/A';
+  try {
+    const snap = await getDocs(collection(db, 'shifts', shiftId, 'bookings'));
+    if (snap.empty) { alert('No bookings to export yet.'); return; }
+    let csv = 'Name,Staff Number,Shift,Date,Time\n';
+    snap.forEach(d => {
+      const b = d.data();
+      csv += `"${String(b.name).replace(/"/g,'""')}",${b.staffNumber},"${label}","${formatDateDisplay(date)}","${time}"\n`;
+    });
+    const a = document.createElement('a');
+    // Fix 10: add BOM (\uFEFF) for correct Excel encoding of special characters
+    a.href = URL.createObjectURL(new Blob(['\uFEFF' + csv], { type:'text/csv;charset=utf-8;' }));
+    a.download = `bookings_${label.replace(/[^a-z0-9]/gi,'_')}_${date}.csv`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  } catch (err) { alert('Error exporting CSV.'); }
+};
+
+// ── VISA CHECK ────────────────────────────────────────────
+let allVisaEntries    = [];
+let visaFilteredCache = [];
+let visaCurrentPage   = 1;
+const VISA_PAGE_SIZE  = 10;
+
+function startListeningVisa() {
+  onSnapshot(collection(db, 'blockedStaff'), snapshot => {
+    allVisaEntries = [];
+    snapshot.forEach(d => allVisaEntries.push({ id: d.id, ...d.data() }));
+    allVisaEntries.sort((a, b) => a.name.localeCompare(b.name));
+    updateVisaCounter(allVisaEntries.length);
+    const q = document.getElementById('visaSearch').value.toLowerCase();
+    const filtered = q
+      ? allVisaEntries.filter(e => e.name.toLowerCase().includes(q) || String(e.staffNumber).includes(q))
+      : allVisaEntries;
+    renderVisaList(filtered);
+  });
+}
+
+function updateVisaCounter(count) {
+  const counter = document.getElementById('visaCounter');
+  const countEl = document.getElementById('visaCount');
+  if (countEl) countEl.textContent = count;
+  if (counter) {
+    counter.textContent   = count;
+    counter.style.display = count > 0 ? 'inline-flex' : 'none';
+  }
+}
+
+function getExpiryStatus(expiryStr) {
+  if (!expiryStr) return { cls: 'expiry-expired', label: 'No date' };
+  const expiry = new Date(expiryStr);
+  const today  = new Date();
+  today.setHours(0, 0, 0, 0);
+  const diffDays = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
+  // Fix: show the real expiry date (e.g. "08 Jul 2026") instead of a countdown
+  const formatted = expiry.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  if (diffDays < 0)   return { cls: 'expiry-expired', label: `Expired ${formatted}` };
+  if (diffDays <= 30) return { cls: 'expiry-soon',    label: formatted };
+  return { cls: 'expiry-ok', label: formatted };
+}
+
+// entries = full filtered list (search already applied); this function paginates it
+function renderVisaList(entries, resetPage = false) {
+  const container = document.getElementById('visaList');
+  if (!container) return;
+  visaFilteredCache = entries;
+  if (resetPage) visaCurrentPage = 1;
+
+  if (entries.length === 0) {
+    container.innerHTML = '<p style="color:#888;font-size:13px;text-align:center;padding:12px 0;">No staff in the list yet.</p>';
+    renderVisaPagination(0, 0);
+    return;
+  }
+
+  const totalPages = Math.max(1, Math.ceil(entries.length / VISA_PAGE_SIZE));
+  if (visaCurrentPage > totalPages) visaCurrentPage = totalPages;
+  const start = (visaCurrentPage - 1) * VISA_PAGE_SIZE;
+  const pageItems = entries.slice(start, start + VISA_PAGE_SIZE);
+
+  container.innerHTML = pageItems.map(e => {
+    const status   = getExpiryStatus(e.visaExpiry);
+    const safeName = e.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    const g = e.group || '';
+    const groupBtn = (code, text) => `<button onclick="window.__quickSetGroup('${e.id}','${code}')"
+      style="border:none;border-radius:6px;padding:4px 9px;font-size:11.5px;cursor:pointer;
+      background:${g === code ? 'var(--blue)' : 'transparent'};color:${g === code ? '#fff' : 'var(--grey-600)'};">${text}</button>`;
+    return `
+      <div class="visa-row">
+        <div class="visa-info">
+          <div class="visa-name">${e.name}</div>
+          <div class="visa-detail"><span class="staff-tag">🪪 Staff No. ${e.staffNumber}</span></div>
+        </div>
+        <div style="display:flex;gap:3px;background:var(--grey-100);border-radius:8px;padding:2px;">
+          ${groupBtn('campus_residence','Campus/Res.')}
+          ${groupBtn('mixed','Seasonal')}
+          ${groupBtn('campus_summer','Extra')}
+        </div>
+        <span class="visa-expiry-badge ${status.cls}">${status.label}</span>
+        <button class="btn-edit-bk" onclick="window.__openVisaEdit('${e.id}')">Edit</button>
+        <button class="btn-remove-visa" onclick="window.__removeVisa('${e.id}','${safeName}')">Remove</button>
+      </div>
+      <div class="edit-form" id="vf-${e.id}">
+        <input type="text" id="vf-name-${e.id}" placeholder="Full name" value="${e.name}">
+        <label style="font-size:11px;font-weight:700;color:var(--grey-600);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px;">Visa expiry date</label>
+        <input type="date" id="vf-expiry-${e.id}" value="${e.visaExpiry || ''}">
+        <div class="msg" id="vf-msg-${e.id}"></div>
+        <div class="edit-actions">
+          <button class="btn-cancel-edit" onclick="window.__closeVisaEdit('${e.id}')">Cancel</button>
+          <button class="btn-save-edit"   onclick="window.__saveVisaEdit('${e.id}')">Save</button>
+        </div>
+      </div>`;
+  }).join('');
+
+  renderVisaPagination(entries.length, totalPages);
+}
+
+window.__quickSetGroup = async (id, group) => {
+  try { await updateDoc(doc(db, 'blockedStaff', id), { group }); }
+  catch (err) { alert('Error updating group. Please try again.'); }
+};
+
+window.__openVisaEdit = (id) => {
+  const msg = document.getElementById(`vf-msg-${id}`);
+  if (msg) { msg.textContent = ''; msg.className = 'msg'; }
+  document.getElementById(`vf-${id}`).classList.add('open');
+};
+window.__closeVisaEdit = (id) => {
+  document.getElementById(`vf-${id}`).classList.remove('open');
+};
+window.__saveVisaEdit = async (id) => {
+  const name   = document.getElementById(`vf-name-${id}`).value.trim();
+  const expiry = document.getElementById(`vf-expiry-${id}`).value;
+  const msgEl  = document.getElementById(`vf-msg-${id}`);
+  if (!name) { msgEl.textContent = 'Name is required.'; msgEl.className = 'msg show msg-error'; return; }
+  if (!isValidName(name)) {
+    msgEl.textContent = 'Please enter a valid name (letters only, at least 3 characters).';
+    msgEl.className = 'msg show msg-error'; return;
+  }
+  const btn = document.querySelector(`#vf-${id} .btn-save-edit`);
+  btn.disabled = true; btn.textContent = 'Saving...';
+  try {
+    await updateDoc(doc(db, 'blockedStaff', id), { name, visaExpiry: expiry || null });
+    window.__closeVisaEdit(id);
+  } catch (err) {
+    msgEl.textContent = 'Error saving changes.';
+    msgEl.className   = 'msg show msg-error';
+  }
+  btn.disabled = false; btn.textContent = 'Save';
+};
+
+function renderVisaPagination(totalCount, totalPages) {
+  let bar = document.getElementById('visaPagination');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'visaPagination';
+    bar.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-top:14px;padding-top:12px;border-top:1px solid var(--grey-100);';
+    document.getElementById('visaList').insertAdjacentElement('afterend', bar);
+  }
+  if (totalCount === 0) { bar.innerHTML = ''; bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+
+  const start = (visaCurrentPage - 1) * VISA_PAGE_SIZE + 1;
+  const end   = Math.min(visaCurrentPage * VISA_PAGE_SIZE, totalCount);
+
+  bar.innerHTML = `
+    <span style="font-size:12px;color:var(--grey-400);">Showing ${start}–${end} of ${totalCount}</span>
+    <div style="display:flex;gap:6px;align-items:center;">
+      <button ${visaCurrentPage <= 1 ? 'disabled' : ''} onclick="window.__visaPage(${visaCurrentPage - 1})"
+        style="padding:6px 12px;border-radius:7px;border:1.5px solid var(--grey-200);background:${visaCurrentPage <= 1 ? 'var(--grey-50)' : '#fff'};color:${visaCurrentPage <= 1 ? 'var(--grey-400)' : 'var(--navy)'};font-size:12.5px;font-weight:700;cursor:${visaCurrentPage <= 1 ? 'default' : 'pointer'};">← Prev</button>
+      <span style="font-size:12.5px;color:var(--grey-600);font-weight:700;">Page ${visaCurrentPage} / ${totalPages}</span>
+      <button ${visaCurrentPage >= totalPages ? 'disabled' : ''} onclick="window.__visaPage(${visaCurrentPage + 1})"
+        style="padding:6px 12px;border-radius:7px;border:1.5px solid var(--grey-200);background:${visaCurrentPage >= totalPages ? 'var(--grey-50)' : '#fff'};color:${visaCurrentPage >= totalPages ? 'var(--grey-400)' : 'var(--navy)'};font-size:12.5px;font-weight:700;cursor:${visaCurrentPage >= totalPages ? 'default' : 'pointer'};">Next →</button>
+    </div>`;
+}
+
+window.__visaPage = (page) => {
+  visaCurrentPage = page;
+  renderVisaList(visaFilteredCache);
+};
+
+// Search filter
+document.getElementById('visaSearch').addEventListener('input', function() {
+  const q = this.value.toLowerCase();
+  const filtered = allVisaEntries.filter(e =>
+    e.name.toLowerCase().includes(q) || String(e.staffNumber).includes(q)
+  );
+  renderVisaList(filtered, true); // reset to page 1 on new search
+});
+
+// Add manually
+const manualMsg = document.getElementById('manualMsg');
+document.getElementById('btnAddVisa').addEventListener('click', async () => {
+  const staffNumber = normaliseStaff(document.getElementById('visaStaffNum').value); // Fix 1
+  const name        = document.getElementById('visaName').value.trim();
+  const visaExpiry  = document.getElementById('visaExpiry').value;
+  const group       = document.getElementById('visaGroup').value;   // Fix 10
+  const period      = document.getElementById('visaPeriod').value;  // reference only
+  if (!staffNumber || !name) {
+    showMsg(manualMsg, 'Staff Number and Name are required.', 'error'); return;
+  }
+  if (!isValidName(name)) {
+    showMsg(manualMsg, 'Please enter a valid name (letters only, at least 3 characters).', 'error'); return;
+  }
+  if (!group) {
+    showMsg(manualMsg, 'Please select a group.', 'error'); return;
+  }
+  const btn = document.getElementById('btnAddVisa');
+  btn.disabled = true; btn.textContent = 'Adding...';
+  try {
+    // Fix 2: use safe document ID, store original staff number in field
+    await setDoc(doc(db, 'blockedStaff', safeDocId(staffNumber)), {
+      staffNumber, name, visaExpiry: visaExpiry || null, group, period: period || null,
+      addedAt: serverTimestamp()
+    });
+    document.getElementById('visaStaffNum').value = '';
+    document.getElementById('visaName').value     = '';
+    document.getElementById('visaExpiry').value   = '';
+    document.getElementById('visaGroup').value    = '';
+    document.getElementById('visaPeriod').value   = '';
+    showMsg(manualMsg, `${name} added to Staff Visa Status.`, 'success');
+    setTimeout(() => clearMsg(manualMsg), 2500);
+  } catch (err) {
+    showMsg(manualMsg, 'Error adding. Please try again.', 'error');
+  }
+  btn.disabled = false; btn.textContent = '➕ Add to Staff Visa Status';
+});
+
+// Upload Excel
+const uploadMsg      = document.getElementById('uploadMsg');
+const fileNameDisplay = document.getElementById('fileNameDisplay');
+document.getElementById('visaFile').addEventListener('change', function() {
+  fileNameDisplay.textContent = this.files[0] ? `📄 ${this.files[0].name}` : '📄 Choose file...';
+});
+document.getElementById('btnUploadVisa').addEventListener('click', async () => {
+  const file = document.getElementById('visaFile').files[0];
+  if (!file) { showMsg(uploadMsg, 'Please select an Excel file first.', 'error'); return; }
+
+  const ok = await confirmModal({
+    title: 'Import from Excel?',
+    message: 'Existing staff will keep their saved visa date (unless the file gives a new one). New staff will be added.',
+    confirmLabel: 'Import'
+  });
+  if (!ok) return;
+
+  const btn = document.getElementById('btnUploadVisa');
+  btn.disabled = true; btn.textContent = 'Importing...';
+
+  try {
+    const data = await file.arrayBuffer();
+    const wb   = XLSX.read(data);
+
+    // Fix 10: one sheet per group. Sheet name (flexible matching) tells us
+    // which group every row in that sheet belongs to.
+    const sheetToGroup = (sheetName) => {
+      const n = sheetName.toLowerCase().replace(/[\s\-\/]/g, '');
+      if (n.includes('summer'))                                   return 'campus_summer';
+      if (n.includes('mixed') || n.includes('misto'))             return 'mixed';
+      if (n.includes('campus') || n.includes('residence') || n.includes('residencia')) return 'campus_residence';
+      return null; // unrecognised sheet name — skip it, don't guess
+    };
+
+    // Combine rows from every recognised sheet, each tagged with its group
+    let rows = [];
+    const skippedSheets = [];
+    for (const sheetName of wb.SheetNames) {
+      const group = sheetToGroup(sheetName);
+      if (!group) { skippedSheets.push(sheetName); continue; }
+      const sheetRows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { defval: '' });
+      sheetRows.forEach(r => rows.push({ ...r, __group: group }));
+    }
+
+    if (rows.length === 0) {
+      showMsg(uploadMsg, 'No recognised sheets found. Name each tab Campus-Residence, Mixed, or Campus Summer (sheet names stay the same for the importer — only the display labels changed).', 'error');
+      btn.disabled = false; btn.textContent = '⬆️ Import from Excel'; return;
+    }
+
+    // Detect columns (case-insensitive)
+    const sample  = rows[0];
+    const keys    = Object.keys(sample);
+    const findKey = (...candidates) => keys.find(k => candidates.some(c => k.toLowerCase().includes(c.toLowerCase())));
+    const staffCol  = findKey('staff number', 'staffnumber', 'staff no', 'staffno', 'number');
+    const nameCol   = findKey('name', 'full name', 'fullname');
+    const expiryCol = findKey('visa expiry', 'visaexpiry', 'expiry', 'expiry date', 'visa');
+    const periodCol = findKey('period', 'availability');
+
+    if (!staffCol || !nameCol) {
+      showMsg(uploadMsg, 'Could not find required columns. Make sure each sheet has "Staff Number" and "Name" columns.', 'error');
+      btn.disabled = false; btn.textContent = '⬆️ Import from Excel'; return;
+    }
+
+    // Fetch existing entries first, so we can preserve visa dates already saved
+    const existingSnap = await getDocs(collection(db, 'blockedStaff'));
+    const existingMap  = {}; // docId -> visaExpiry
+    existingSnap.forEach(d => { existingMap[d.id] = d.data().visaExpiry || null; });
+
+    // Upsert in batches of 500 — never deletes anyone
+    let batch = writeBatch(db);
+    let count = 0;
+    for (const row of rows) {
+      const staffNumber = normaliseStaff(row[staffCol] || ''); // Fix 1
+      const name        = String(row[nameCol]  || '').trim();
+      const visaExpiry  = expiryCol ? String(row[expiryCol] || '').trim() : '';
+      if (!staffNumber || !name) continue;
+
+      // Fix 3: keep expiry as YYYY-MM-DD string — no Date object, no timezone issue
+      let expiryFormatted = visaExpiry;
+      if (visaExpiry && !isNaN(visaExpiry)) {
+        const d = XLSX.SSF.parse_date_code(Number(visaExpiry));
+        expiryFormatted = `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;
+      }
+
+      const docId = safeDocId(staffNumber);
+      // Keep the existing saved visa date if the file doesn't provide one
+      const finalExpiry = expiryFormatted || existingMap[docId] || null;
+      const period      = periodCol ? String(row[periodCol] || '').trim().toLowerCase() : '';
+
+      batch.set(doc(db, 'blockedStaff', docId), {
+        staffNumber, name,
+        visaExpiry: finalExpiry,
+        group: row.__group,
+        period: ['morning','afternoon','both'].includes(period) ? period : null,
+        addedAt: serverTimestamp()
+      });
+      count++;
+      if (count % 500 === 0) { await batch.commit(); batch = writeBatch(db); }
+    }
+    if (count % 500 !== 0) await batch.commit();
+
+    const skipNote = skippedSheets.length ? ` (ignored sheet(s): ${skippedSheets.join(', ')})` : '';
+    showMsg(uploadMsg, `✓ ${count} staff imported/updated successfully.${skipNote}`, 'success');
+    document.getElementById('visaFile').value = '';
+    fileNameDisplay.textContent = '📄 Choose file...';
+    setTimeout(() => clearMsg(uploadMsg), 3000);
+
+  } catch (err) {
+    console.error(err);
+    showMsg(uploadMsg, 'Error reading file. Make sure it is a valid .xlsx file.', 'error');
+  }
+  btn.disabled = false; btn.textContent = '⬆️ Import from Excel';
+});
+
+// Remove single entry
+window.__removeVisa = async (docId, name) => {
+  const ok = await confirmModal({
+    title: 'Remove from list?',
+    message: `Remove "${name}" from the Staff Visa Status list? They will need to be re-added to book shifts again.`,
+    confirmLabel: 'Remove', danger: true
+  });
+  if (!ok) return;
+  try { await deleteDoc(doc(db, 'blockedStaff', docId)); }
+  catch (err) { alert('Error removing.'); }
+};
+
+// Export to Excel
+document.getElementById('btnExportVisa').addEventListener('click', () => {
+  if (allVisaEntries.length === 0) { alert('The list is empty — nothing to export.'); return; }
+  const rows = allVisaEntries.map(e => ({
+    'Staff Number': e.staffNumber,
+    'Name': e.name,
+    'Group': groupLabel(e.group),
+    'Period': e.period || '',
+    'Visa Expiry': e.visaExpiry || ''
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Staff Visa Status');
+  const today = new Date().toISOString().slice(0, 10);
+  XLSX.writeFile(wb, `staff_visa_status_${today}.xlsx`);
+});
+
+// Clear all
+document.getElementById('btnClearVisa').addEventListener('click', async () => {
+  if (allVisaEntries.length === 0) { alert('The list is already empty.'); return; }
+
+  const step1 = await confirmModal({
+    title: `Clear all ${allVisaEntries.length} staff?`,
+    message: 'This removes every staff number from the list. Nobody will be able to book a shift until the list is re-imported. This cannot be undone.',
+    confirmLabel: 'Continue', danger: true
+  });
+  if (!step1) return;
+
+  const step2 = await confirmModal({
+    title: 'Are you absolutely sure?',
+    message: `This is your last chance to cancel. All ${allVisaEntries.length} staff records will be permanently deleted.`,
+    confirmLabel: 'Yes, clear everything', danger: true
+  });
+  if (!step2) return;
+
+  try {
+    const batch = writeBatch(db);
+    allVisaEntries.forEach(e => batch.delete(doc(db, 'blockedStaff', e.id)));
+    await batch.commit();
+  } catch (err) { alert('Error clearing list.'); }
+});
+
+function loadVisaList() { /* real-time via onSnapshot, nothing to do */ }
+
+// ── ADMIN USERS ───────────────────────────────────────────
+async function loadUsers() {
+  const container = document.getElementById('usersList');
+  container.innerHTML = '<div class="user-card"><p style="color:#888;margin:0;font-size:13px;">Loading users...</p></div>';
+  try {
+    const result = await listAdminUsers();
+    const users  = result.data.users;
+    if (users.length === 0) {
+      container.innerHTML = '<div class="user-card"><p style="color:#888;margin:0;font-size:13px;">No users found.</p></div>'; return;
+    }
+    container.innerHTML = users.map(u => {
+      const isMe   = u.uid === window.__currentUser?.uid;
+      const joined = new Date(u.createdAt).toLocaleDateString('en-IE', { day:'2-digit', month:'short', year:'numeric' });
+      const last   = u.lastSignIn !== 'Never'
+        ? new Date(u.lastSignIn).toLocaleDateString('en-IE', { day:'2-digit', month:'short', year:'numeric' })
+        : 'Never signed in';
+      return `
+        <div class="user-card">
+          <div class="user-row">
+            <div class="user-info">
+              <div class="user-email">${u.email}${isMe ? '<span class="badge-you">YOU</span>' : ''}</div>
+              <div class="user-meta">Joined ${joined} &middot; Last sign-in: ${last}</div>
+            </div>
+            <div class="user-actions">
+              <button class="btn-reset"  onclick="window.__resetPwd('${u.email}')">Reset password</button>
+              ${!isMe ? `<button class="btn-remove" onclick="window.__removeUser('${u.uid}','${u.email}')">Remove</button>` : ''}
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+  } catch (err) {
+    container.innerHTML = '<div class="user-card"><p style="color:#c0392b;margin:0;font-size:13px;">Error loading users.</p></div>';
+  }
+}
+
+const inviteMsg = document.getElementById('inviteMsg');
+document.getElementById('btnInvite').addEventListener('click', async () => {
+  const email = document.getElementById('inviteEmail').value.trim();
+  const btn   = document.getElementById('btnInvite');
+  if (!email || !email.includes('@')) { showMsg(inviteMsg, 'Please enter a valid email address.', 'error'); return; }
+  btn.disabled = true; btn.textContent = 'Sending...';
+  try {
+    const currentUsers = await listAdminUsers();
+    if (currentUsers.data.users.length >= 10) {
+      showMsg(inviteMsg, 'Maximum limit of 10 admin users reached.', 'error');
+      btn.disabled = false; btn.textContent = 'Send invite'; return;
+    }
+    await createAdminUser({ email });
+    await sendPasswordResetEmail(auth, email);
+    document.getElementById('inviteEmail').value = '';
+    showMsg(inviteMsg, `Invite sent! ${email} will receive an email to set their password.`, 'success');
+    setTimeout(() => loadUsers(), 1500);
+  } catch (err) {
+    const msg = err.code === 'functions/already-exists' ? 'This email already has an admin account.' : 'Error sending invite.';
+    showMsg(inviteMsg, msg, 'error');
+  }
+  btn.disabled = false; btn.textContent = 'Send invite';
+});
+
+window.__resetPwd = async (email) => {
+  const ok = await confirmModal({
+    title: 'Send password reset?',
+    message: `Send a password reset email to ${email}?`,
+    confirmLabel: 'Send'
+  });
+  if (!ok) return;
+  try {
+    await sendPasswordResetEmail(auth, email);
+    alert(`Password reset email sent to ${email}`);
+  } catch (err) { alert('Error sending reset email.'); }
+};
+window.__removeUser = async (uid, email) => {
+  const ok = await confirmModal({
+    title: 'Remove admin access?',
+    message: `Remove ${email} from admin access? They will no longer be able to log in to this panel.`,
+    confirmLabel: 'Remove', danger: true
+  });
+  if (!ok) return;
+  try { await deleteAdminUser({ uid }); await loadUsers(); }
+  catch (err) { alert('Error removing user.'); }
+};
+</script>
+</body>
+</html>

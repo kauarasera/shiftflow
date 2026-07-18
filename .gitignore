@@ -1,0 +1,12 @@
+# NOTE: firebase-config.js is intentionally NOT ignored in this repo.
+# This connects to an isolated demo Firebase project with only fictional
+# data — Firebase API keys aren't secret by design (protection comes from
+# Firestore Security Rules, already published). Do NOT do this for a repo
+# connected to a real production project with real user data — use
+# firebase-config.example.js as the template instead, and keep the real
+# firebase-config.js out of version control in that case.
+.DS_Store
+node_modules/
+
+# Personal study notes — not meant for the public repo
+docs/RESUMO_PARA_ESTUDAR.md
